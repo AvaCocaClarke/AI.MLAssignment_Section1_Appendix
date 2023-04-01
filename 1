@@ -1,0 +1,248 @@
+library(tidyverse)
+library(ggplot2)
+library(lme4)
+library(dplyr)
+library(gridExtra)
+acupun_data <- data_section1
+attach(acupun_data)
+head(acupun_data)
+mean(acupun_data$age)
+median(acupun_data$age)
+sd(acupun_data$age)
+range(acupun_data$age)
+print(acupun_data$migraine)
+table(acupun_data$migraine)
+mean(chronicity)
+median(chronicity)
+table(sex)
+table(group)
+mean(pk1)
+median(pk1)
+sd(pk1)
+range(pk1)
+mean(na.omit(pk5))
+median(na.omit(pk5))
+sd(na.omit(pk5))
+range(na.omit(pk5))
+mean(na.omit(gen1))
+median(na.omit(gen1))
+sd(na.omit(gen1))
+range(na.omit(gen1))
+mean(na.omit(gen5))
+median(na.omit(gen5))
+sd(na.omit(gen5))
+range(na.omit(gen5))
+table(withdrawal_reason)
+mean(na.omit(painmedspk1))
+median(na.omit(painmedspk1))
+sd(na.omit(painmedspk1))
+range(na.omit(painmedspk1))
+mean(na.omit(painmedspk5))
+median(na.omit(painmedspk5))
+sd(na.omit(painmedspk5))
+range(na.omit(painmedspk5))
+hist(pchange)
+hist(painmedspk1)
+hist(painmedspk5)
+hist(pk1)
+hist(pk5)
+hist(gen1)
+hist(gen5)
+shapiro.test(age)
+shapiro.test(painmedspk1)
+shapiro.test(pchange)
+shapiro.test(painmedspk5)
+shapiro.test(pk1)
+shapiro.test(pk5)
+shapiro.test(gen1)
+shapiro.test(gen5)
+table(response)
+mean(na.omit(pchange))
+median(na.omit(pchange))
+sd(na.omit(pchange))
+range(na.omit(pchange))
+qqnorm(headache_data$pk5)
+qqline(headache_data$pk5)
+data <- table(acupun_data$group, acupun_data$response)
+data
+new_table <- matrix(0, nrow=2, ncol=2, dimnames=list(c("Control", "Treatment"), c("Non-Responder", "Responder")))
+new_table["Control", "Non-Responder"] <- data[1,1]
+new_table["Control", "Responder"] <- data[1,2]
+new_table["Treatment", "Non-Responder"] <- data[2,1]
+new_table["Treatment", "Responder"] <- data[2,2]
+new_table
+groups <- subset(acupun_data, select = c(pk1, pk5))
+treatment_grp_long <- pivot_longer(groups, cols = c("pk1", "pk5"), names_to = "variable", values_to = "value")
+treatment_grp_long <- na.omit(treatment_grp_long)
+# Create plot
+treatment_plot_2 <- ggplot(treatment_grp_long, aes(x = value, fill = variable)) +
+geom_density(alpha = 0.2) +
+ggtitle("Treatment pk before and after") +
+scale_fill_manual(name = "Variable", values = c("magenta", "lightblue"), labels = c("pk1", "pk5")) +
+labs(x = "pk value", y = "density") +
+theme_classic()
+# Show plot
+treatment_plot_2
+treatment_plot_3 <- ggplot(treatment_grp_long, aes(x = variable, y = value, fill = variable)) +
+geom_violin(trim = FALSE, alpha = 0.7) +
+geom_boxplot(width = 0.1, fill = "white", outlier.shape = NA) +
+ggtitle("Treatment pk before and after") +
+scale_fill_manual(name = "Variable", values = c("magenta", "lightblue"), labels = c("pk1", "pk5")) +
+labs(x = "", y = "pk value", fill = "") +
+theme_minimal()
+# Show plot
+treatment_plot_3
+summary(acupun_data$pk1[acupun_data$group == 0]) # Control group, baseline
+summary(acupun_data$pk1[acupun_data$group == 1]) # Acupuncture group, baseline
+summary(acupun_data$pk5[acupun_data$group == 0]) # Control group, follow-up
+summary(acupun_data$pk5[acupun_data$group == 1]) # Acupuncture group, follow-up
+wilcox.test(pk1 ~ group, data = acupun_data)
+wilcox.test(pk5 ~ group, data = acupun_data)
+model2 <- glm(response ~ group, data = acupun_data, family = binomial)
+summary(model2)
+headache_groups <- acupun_data %>% group_by(group)
+pchange_summary <- headache_groups %>% summarise(median_pchange = median(pchange, na.rm = TRUE),
+sd_pchange = sd(pchange, na.rm = TRUE))
+diff_pchange <- diff(pchange_summary$mean_pchange)
+ggplot(data = pchange_summary, aes(x = group, y = median_pchange)) +
+geom_bar(stat = "identity", fill = "pink") +
+geom_errorbar(aes(ymin = median_pchange - sd_pchange, ymax = median_pchange + sd_pchange), width = 0.2) +
+labs(title = "Effect of Acupuncture on Chronic Headaches",
+x = "Treatment Group",
+y = "Median Percent Change in Severity Score") +
+geom_text(aes(x = 0.5, y = 2, label = paste("Difference in means =", round(diff_pchange, 2))), color = "white", size = 4)
+# Compare the effectiveness of acupuncture in reducing severity scores for patients with and without migraines
+ggplot(data = acupun_data, aes(x = pchange, fill = as.factor(migraine))) +
+geom_density(alpha = 0.5) +
+xlab("Effectiveness of Acupuncture") +
+ylab("Density") +
+ggtitle("Effectiveness of Acupuncture for Migraine vs. Other Chronic Headaches") +
+scale_fill_manual(values = c("blue", "red"))
+shapiro.test(acupun_data$migraine)
+t.test(acupun_data$pk5[acupun_data$migraine == 0 & acupun_data$group == 1], acupun_data$pk5[acupun_data$migraine == 1 & acupun_data$group == 1]) # Acupuncture group only
+model3 <- lm(pk5 ~ migraine, data = acupun_data)
+headache_migraine <-subset(acupun_data, migraine ==0)
+headache_migraine_treat<- subset(headache_migraine, group == 1)
+headache_migraine_control <- subset(headache_migraine, group == 0)
+headache_no_migraine <- subset(acupun_data,migraine ==1)
+headache_no_migraine_treat <- subset(headache_no_migraine, group == 1)
+headache_no_migraine_control <- subset(headache_no_migraine, group == 0)
+wilcox.test(headache_migraine_treat$pk1, headache_migraine_treat$pk5, paired = TRUE, exact = FALSE)
+wilcox.test(headache_migraine_control$pk1, headache_migraine_control$pk5, paired = TRUE, exact = FALSE)
+summary(acupun_data$pk1[acupun_data$migraine == 0])
+summary(acupun_data$pk1[acupun_data$migraine == 1])
+summary(acupun_data$pk5[acupun_data$migraine == 0])
+summary(acupun_data$pk5[acupun_data$migraine == 1])
+table <- table(acupun_data$response, acupun_data$migraine)
+result <- chisq.test(table)
+result
+headache_migraine_subset <- subset(acupun_data, migraine == 0)
+headache_no_migraine_subset <- subset(acupun_data, migraine == 1)
+headache_migraine_subset$response <- factor(headache_migraine_subset$response, levels = c(0,1), labels = c("No", "Yes"))
+headache_no_migraine_subset$response <- factor(headache_no_migraine_subset$response, levels = c(0,1), labels = c("No", "Yes"))
+headache_migraine_subset$group <- factor(headache_migraine_subset$group, levels = c(0,1), labels = c("Control", "Treatment"))
+headache_no_migraine_subset$group <- factor(headache_no_migraine_subset$group, levels = c(0,1), labels = c("Control", "Treatment"))
+headache_migraine_model <- glm(response ~ migraine + group, data = acupun_data, family = binomial())
+summary(headache_migraine_model)
+# Filter data for treatment and control groups
+treatment_data <- acupun_data[acupun_data$group == "treatment", ]
+control_data <- acupun_data[acupun_data$group == "control", ]
+ggplot(acupun_data, aes(x = factor(migraine), fill = factor(response))) +
+geom_bar(position = "stack") +
+scale_fill_manual(values = c("gray70", "dodgerblue2")) +
+labs(x = "Migraine Status", y = "Count", fill = "Response") +
+facet_wrap(~group, ncol = 2) +
+ggtitle("Response by Migraine Status and Treatment Group")
+# Q3
+treatment_data <- subset(acupun_data, group == 1 & ![is.na](http://is.na/)(pk5))
+ggplot(treatment_data, aes(x = factor(sex), y = pk5)) +
+geom_boxplot() +
+labs(x = "Sex", y = "Severity Score",
+title = "Effect of Gender on Acupuncture Efficacy") +
+scale_x_discrete(labels = c("Male", "Female"))
+ggplot(treatment_data, aes(x = factor(sex), y = pk5, fill = factor(sex))) +
+geom_violin(scale = "count", trim = FALSE) +
+geom_boxplot(width = 0.1, fill = "white", outlier.color = NA) +
+labs(x = "Sex", y = "Severity Score",
+title = "Effect of Gender on Acupuncture Efficacy") +
+scale_fill_manual(values = c("lightpink", "lavender")) +
+theme_classic()
+response_rates <- tapply(treatment_data$response, treatment_data$sex, mean)
+ggplot(data.frame(sex = names(response_rates), response_rate = response_rates),
+aes(x = sex, y = response_rate, fill = sex)) +
+geom_bar(stat = "identity") +
+scale_fill_manual(values = c("lightpink", "lavender")) +
+labs(x = "Sex", y = "Response Rate",
+title = "Effect of Gender on Acupuncture Response Rates") +
+theme_classic()
+response_table <- table(treatment_data$sex, treatment_data$response)
+chisq.test(response_table)
+treatment_control_data <- subset(acupun_data, group %in% c(0, 1))
+table(treatment_control_data$sex, treatment_control_data$group, treatment_control_data$response)
+table(treatment_control_data$sex, treatment_control_data$group, treatment_control_data$response, dnn = c("Sex", "Group", "Response"))
+acupun_model <- glm(response ~ group + sex, data = acupun_data, family = binomial())
+summary(acupun_model)
+# Q4
+treatment_data <- subset(acupun_data, group == 1)
+# subset the data to include only non-missing values for general health and medication packs
+treat_data <- subset(treat_data, ![is.na](http://is.na/)(gen1) & ![is.na](http://is.na/)(gen5) & ![is.na](http://is.na/)(painmedspk1) & ![is.na](http://is.na/)(painmedspk5))
+acupun_data %>%
+group_by(group) %>%
+summarize(mean_gen1 = mean(gen1, na.rm = TRUE),
+mean_gen5 = mean(gen5, na.rm = TRUE),
+mean_painmedspk1 = mean(painmedspk1, na.rm = TRUE),
+mean_painmedspk5 = mean(painmedspk5, na.rm = TRUE),
+sd_gen1 = sd(gen1, na.rm = TRUE),
+sd_gen5 = sd(gen5, na.rm = TRUE), # add na.rm = TRUE to remove NAs
+sd_painmedspk1 = sd(painmedspk1, na.rm = TRUE),
+sd_painmedspk5 = sd(painmedspk5, na.rm = TRUE)) # add na.rm = TRUE to remove NAs
+treatment_data2 <- subset(acupun_data, group == 1 & ![is.na](http://is.na/)(gen1) & ![is.na](http://is.na/)(gen5))
+wilcox.test(treatment_data2$gen1, treatment_data2$gen5, paired = TRUE)
+treatment_data3 <- subset(acupun_data, group == 1 & ![is.na](http://is.na/)(painmedspk1) & ![is.na](http://is.na/)(painmedspk5))
+wilcox.test(treatment_data3$painmedspk1, treatment_data3$painmedspk5, paired = TRUE)
+treatment_data4 <- subset(acupun_data, group == 1 & ![is.na](http://is.na/)(gen1))
+control_data <- subset(acupun_data, group == 0 & ![is.na](http://is.na/)(gen1))
+wilcox.test(treatment_data4$gen1, control_data$gen1)
+treatment_data5 <- subset(acupun_data, group == 1 & ![is.na](http://is.na/)(painmedspk1))
+control_data <- subset(acupun_data, group == 0 & ![is.na](http://is.na/)(painmedspk1))
+wilcox.test(treatment_data5$painmedspk1, control_data$painmedspk1)
+treat_data <- subset(acupun_data, group == 1 & ![is.na](http://is.na/)(painmedspk1) & ![is.na](http://is.na/)(painmedspk5))
+control_data <- subset(acupun_data, group == 0 & ![is.na](http://is.na/)(painmedspk1) & ![is.na](http://is.na/)(painmedspk5))
+# calculate the difference in pain medication use before and after the intervention for each participant
+treat_data$diff_painmeds <- treat_data$painmedspk5 - treat_data$painmedspk1
+control_data$diff_painmeds <- control_data$painmedspk5 - control_data$painmedspk1
+# create a boxplot or violin plot for the treatment group
+ggplot(treat_data, aes(x = factor(group), y = diff_painmeds)) +
+geom_violin(scale = "count", trim = FALSE, fill = "lightpink") +
+geom_boxplot(width = 0.1, fill = "white", outlier.color = NA) +
+labs(x = "Group", y = "Change in Pain Medication Use",
+title = "Change in Pain Medication Use before and after Acupuncture (Treatment Group)") +
+theme_classic()
+# create a boxplot or violin plot for the control group
+ggplot(control_data, aes(x = factor(group), y = diff_painmeds)) +
+geom_violin(scale = "count", trim = FALSE, fill = "lavender") +
+geom_boxplot(width = 0.1, fill = "white", outlier.color = NA) +
+labs(x = "Group", y = "Change in Pain Medication Use",
+title = "Change in Pain Medication Use before and after Acupuncture (Control Group)") +
+theme_classic()
+# Subset the data to include only complete cases for gen1 and gen5
+gen_data <- subset(acupun_data, ![is.na](http://is.na/)(gen1) & ![is.na](http://is.na/)(gen5))
+# Subset the data to include only the treatment group
+treatment_gen <- subset(gen_data, group == 1)
+# Create a new column for the difference in gen1 and gen5 scores for the treatment group
+treatment_gen$gen_diff <- treatment_gen$gen5 - treatment_gen$gen1
+# Subset the data to include only the control group
+control_gen <- subset(gen_data, group == 0)
+# Create a new column for the difference in gen1 and gen5 scores for the control group
+control_gen$gen_diff <- control_gen$gen5 - control_gen$gen1
+# Create a box plot to visualize the difference in gen1 and gen5 scores for the treatment group
+ggplot(treatment_gen, aes(x = "", y = gen_diff)) +
+geom_boxplot(fill = "lightpink") +
+labs(x = "", y = "Difference in Gen1 and Gen5 Scores",
+title = "Difference in Gen1 and Gen5 Scores for Treatment Group") +
+theme_classic()
+ggplot(control_gen, aes(x = "", y = gen_diff)) +
+geom_boxplot(fill = "lavender") +
+labs(x = "", y = "Difference in Gen1 and Gen5 Scores",
+title = "Difference in Gen1 and Gen5 Scores for Control Group") +
+theme_classic()
